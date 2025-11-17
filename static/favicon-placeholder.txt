@@ -1,0 +1,4 @@
+Place your favicon.png file in this directory.
+
+You can generate a favicon at: https://favicon.io/
+Or use any PNG image (recommended size: 32x32 or 48x48 pixels)
