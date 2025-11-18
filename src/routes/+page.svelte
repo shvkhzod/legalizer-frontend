@@ -754,8 +754,13 @@
       font-size: 14px;
     }
 
+    .scan-form {
+      height: 120px;
+    }
+
     .url-input {
-      height: 52px;
+      height: 64px;
+
       font-size: 16px; /* Prevents zoom on iOS */
     }
 
