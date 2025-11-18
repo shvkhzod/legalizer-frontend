@@ -582,6 +582,15 @@
       max-width: 480px;
     }
 
+    .url-input {
+      height: 56px;
+      font-size: 16px;
+    }
+
+    .scan-button {
+      height: 56px;
+    }
+
     .features {
       grid-template-columns: repeat(3, 1fr);
       gap: 24px;
@@ -654,8 +663,8 @@
     .url-input {
       width: 100%;
       border-radius: 12px;
-      height: 48px;
-      font-size: 15px;
+      height: 54px;
+      font-size: 16px;
       padding: 0 16px;
     }
 
@@ -663,8 +672,8 @@
       width: 100%;
       border-radius: 12px;
       margin-left: 0;
-      height: 48px;
-      font-size: 15px;
+      height: 54px;
+      font-size: 16px;
     }
 
     .features {
@@ -746,13 +755,13 @@
     }
 
     .url-input {
-      height: 46px;
+      height: 52px;
       font-size: 16px; /* Prevents zoom on iOS */
     }
 
     .scan-button {
-      height: 46px;
-      font-size: 14px;
+      height: 52px;
+      font-size: 16px;
     }
 
     .feature-card {
