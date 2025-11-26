@@ -1,6 +1,6 @@
 // /src/lib/utils/reportEngine.ts
 import type { ScrapedData, ComplianceReport, ComplianceCheck, ComplianceStatus } from './types';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 /**
  * Generate a compliance report from scraped data using AI analysis
@@ -286,21 +286,22 @@ function calculateOverallStatus(score: number): ComplianceStatus {
 }
 
 /**
- * Use Anthropic Claude to enhance the report with AI insights
+ * Use Google Gemini to enhance the report with AI insights
  */
 async function enhanceReportWithAI(
   scrapedData: ScrapedData,
   preliminaryReport: ComplianceReport
 ): Promise<ComplianceReport> {
   // Check for API key
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.warn('ANTHROPIC_API_KEY not set. Skipping AI enhancement.');
+    console.warn('GEMINI_API_KEY not set. Skipping AI enhancement.');
     return preliminaryReport;
   }
 
   try {
-    const anthropic = new Anthropic({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
     const prompt = `You are a charity compliance expert. Analyze this website scan data and provide enhanced insights for the compliance report.
 
@@ -317,25 +318,20 @@ Please review the preliminary report and suggest:
 
 Respond in JSON format with the same structure as the preliminary report, but with enhanced summaries and recommendations.`;
 
-    const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const responseText = response.text();
 
-    // Extract the text content from the response
-    const responseText = message.content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block as { type: 'text'; text: string }).text)
-      .join('');
+    // Extract JSON from response (handle markdown code blocks)
+    let jsonText = responseText.trim();
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.replace(/^```json\n/, '').replace(/\n```$/, '');
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
 
     // Try to parse as JSON
-    const enhancedReport = JSON.parse(responseText) as ComplianceReport;
+    const enhancedReport = JSON.parse(jsonText) as ComplianceReport;
     return enhancedReport;
   } catch (error) {
     console.error('AI enhancement error:', error);

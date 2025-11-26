@@ -5,6 +5,7 @@
   import { authStore } from '$lib/stores/auth';
   import { api } from '$lib/api/client';
   import ReportDisplay from '$lib/components/ReportDisplay.svelte';
+  import { generatePDF } from '$lib/utils/pdfGenerator';
 
   export let data: PageData;
 
@@ -33,6 +34,12 @@
       console.error('Save error:', err);
     } finally {
       saving = false;
+    }
+  }
+
+  function downloadPDF() {
+    if (data.report) {
+      generatePDF(data.report);
     }
   }
 </script>
@@ -64,6 +71,16 @@
   {/if}
 
   {#if data.report}
+    <div class="report-actions">
+      <button on:click={downloadPDF} class="download-pdf-button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download PDF Report
+      </button>
+    </div>
     <ReportDisplay report={data.report} />
   {:else}
     <div class="error-state">
@@ -258,6 +275,49 @@
     transform: translateY(-2px);
   }
 
+  .report-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 24px;
+    animation: fadeIn 0.8s ease-out;
+  }
+
+  .download-pdf-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #228bff 0%, #1a6fd1 100%);
+    border: none;
+    border-radius: 12px;
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(34, 139, 255, 0.3);
+  }
+
+  .download-pdf-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(34, 139, 255, 0.4);
+    background: linear-gradient(135deg, #1a6fd1 0%, #228bff 100%);
+  }
+
+  .download-pdf-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(34, 139, 255, 0.3);
+  }
+
+  .download-pdf-button svg {
+    transition: transform 0.3s ease;
+  }
+
+  .download-pdf-button:hover svg {
+    transform: translateY(2px);
+  }
+
   /* Tablet Responsive */
   @media (max-width: 1024px) {
     .scan-container {
@@ -277,6 +337,18 @@
 
     .bg-blur-top {
       display: none;
+    }
+
+    .report-actions {
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .download-pdf-button {
+      width: 100%;
+      justify-content: center;
+      font-size: 15px;
+      padding: 14px 24px;
     }
 
     .save-notification {
