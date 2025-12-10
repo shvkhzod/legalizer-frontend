@@ -8,6 +8,8 @@
   async function handleScan() {
     if (!websiteUrl.trim()) return;
     isSubmitting = true;
+
+    // Show loading page immediately for better UX
     const encodedUrl = encodeURIComponent(websiteUrl);
     await goto(`/scan?url=${encodedUrl}`);
   }

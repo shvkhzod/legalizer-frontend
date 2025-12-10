@@ -25,7 +25,7 @@
 <header>
   <div class="container">
     <a href="/" class="logo">
-      <img src="/logo.svg" alt="Logo" />
+      <img src="/s_logo.svg" alt="Logo" />
     </a>
     <div class="nav-group">
       <a href="/" class="nav-link" class:active={isActive('/')}>Home</a>
@@ -82,8 +82,6 @@
     justify-content: center;
     width: 56px;
     height: 56px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 17px;
     flex-shrink: 0;
     transition: all 0.3s;
@@ -99,9 +97,8 @@
   }
 
   .logo img {
-    height: 28px;
+    height: 64px;
     width: auto;
-    filter: brightness(0) invert(1);
     transition: transform 0.3s;
   }
 
@@ -312,12 +309,12 @@
     }
 
     .logo {
-      width: 48px;
-      height: 48px;
+      width: 64px;
+      height: 64px;
     }
 
     .logo img {
-      height: 24px;
+      height: 52px;
     }
 
     .nav-group {

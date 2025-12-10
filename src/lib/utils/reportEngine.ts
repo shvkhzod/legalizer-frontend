@@ -1,6 +1,7 @@
 // /src/lib/utils/reportEngine.ts
 import type { ScrapedData, ComplianceReport, ComplianceCheck, ComplianceStatus } from './types';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GEMINI_API_KEY } from '$env/static/private';
 
 /**
  * Generate a compliance report from scraped data using AI analysis
@@ -286,37 +287,88 @@ function calculateOverallStatus(score: number): ComplianceStatus {
 }
 
 /**
- * Use Google Gemini to enhance the report with AI insights
+ * Use Google Gemini to perform deep document analysis and enhance the report
  */
 async function enhanceReportWithAI(
   scrapedData: ScrapedData,
   preliminaryReport: ComplianceReport
 ): Promise<ComplianceReport> {
   // Check for API key
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  if (!GEMINI_API_KEY) {
     console.warn('GEMINI_API_KEY not set. Skipping AI enhancement.');
     return preliminaryReport;
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-    const prompt = `You are a charity compliance expert. Analyze this website scan data and provide enhanced insights for the compliance report.
+    // Build comprehensive prompt with document contents
+    let documentSection = '';
+    if (scrapedData.documentContents.privacy) {
+      documentSection += `\n\n=== PRIVACY POLICY FULL TEXT ===\n${scrapedData.documentContents.privacy}\n`;
+    }
+    if (scrapedData.documentContents.cookie) {
+      documentSection += `\n\n=== COOKIE POLICY FULL TEXT ===\n${scrapedData.documentContents.cookie}\n`;
+    }
+    if (scrapedData.documentContents.safeguarding) {
+      documentSection += `\n\n=== SAFEGUARDING POLICY FULL TEXT ===\n${scrapedData.documentContents.safeguarding}\n`;
+    }
 
-Scraped Data:
-${JSON.stringify(scrapedData, null, 2)}
+    const prompt = `You are an expert legal compliance auditor specializing in charity and non-profit regulations, GDPR, PECR, and UK charity law.
 
-Preliminary Report:
+TASK: Perform a detailed compliance audit of this charity's website and legal documents. Analyze the actual document content carefully and identify specific compliance issues, missing clauses, and improvements needed.
+
+SCANNED WEBSITE: ${scrapedData.scannedUrl}
+
+WEBSITE ANALYSIS:
+- SSL/HTTPS: ${scrapedData.usesSSL ? 'Yes' : 'No'}
+- Privacy Policy URL: ${scrapedData.foundPages.privacy || 'Not found'}
+- Cookie Policy URL: ${scrapedData.foundPages.cookie || 'Not found'}
+- Safeguarding Policy URL: ${scrapedData.foundPages.safeguarding || 'Not found'}
+- Payment Processing: ${scrapedData.paymentType}
+- Email Marketing: ${scrapedData.pecrCheck}
+- Gift Aid mentioned: ${scrapedData.foundGiftAid ? 'Yes' : 'No'}
+${documentSection}
+
+PRELIMINARY AUTOMATED CHECKS:
 ${JSON.stringify(preliminaryReport, null, 2)}
 
-Please review the preliminary report and suggest:
-1. Any additional insights or context for the findings
-2. More specific recommendations based on the data
-3. Any patterns or issues that might have been missed
+YOUR TASK:
+1. **Carefully read and analyze each policy document** provided above
+2. **Identify specific compliance violations** - cite the exact problematic sections or missing clauses
+3. **Check for GDPR requirements**:
+   - Data controller contact details
+   - Legal basis for processing
+   - Data retention periods
+   - Third-party data processors listed
+   - Data subject rights (DSAR, rectification, erasure, portability)
+   - International data transfers
+   - Complaint procedures (ICO contact)
+4. **Check for PECR requirements** (if applicable):
+   - Cookie consent mechanism
+   - Analytics disclosure
+   - Marketing consent (opt-in)
+5. **Check charity-specific requirements**:
+   - Safeguarding policies (if working with vulnerable groups)
+   - Fundraising standards
+   - Financial transparency
+6. **Provide actionable recommendations** with specific text suggestions where possible
 
-Respond in JSON format with the same structure as the preliminary report, but with enhanced summaries and recommendations.`;
+OUTPUT FORMAT:
+Return a JSON object with the EXACT same structure as the preliminary report, but with:
+- Enhanced, detailed summaries citing specific issues found in the documents
+- Specific, actionable recommendations with examples
+- Updated summary.goodPoints, summary.warnings, and summary.threats based on your detailed analysis
+- Adjust overallScore based on the severity of issues found (reduce score for serious violations)
+
+IMPORTANT:
+- Be thorough and specific - cite actual problems you find in the text
+- If a document is missing critical sections (e.g., no data retention period), explicitly state this
+- Prioritize serious legal violations over minor issues
+- Provide clear, actionable guidance that a charity can implement immediately
+
+Return ONLY the JSON object, no other text.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -332,6 +384,13 @@ Respond in JSON format with the same structure as the preliminary report, but wi
 
     // Try to parse as JSON
     const enhancedReport = JSON.parse(jsonText) as ComplianceReport;
+
+    // Validate the enhanced report has the required structure
+    if (!enhancedReport.checks || !enhancedReport.summary) {
+      console.warn('AI returned invalid report structure, using preliminary report');
+      return preliminaryReport;
+    }
+
     return enhancedReport;
   } catch (error) {
     console.error('AI enhancement error:', error);

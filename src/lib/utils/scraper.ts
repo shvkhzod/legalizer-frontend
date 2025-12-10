@@ -19,6 +19,11 @@ export async function scrapeWebsite(url: string): Promise<ScrapedData> {
       cookie: null,
       safeguarding: null,
     },
+    documentContents: {
+      privacy: null,
+      cookie: null,
+      safeguarding: null,
+    },
     foundCopyright: false,
     paymentType: 'none',
     pecrCheck: 'unknown',
@@ -40,6 +45,14 @@ export async function scrapeWebsite(url: string): Promise<ScrapedData> {
     const links = extractLinks(homepageHtml, normalizedUrl);
     scrapedData.foundPages = findPolicyPages(links);
 
+    // 3b. If policy pages not found, try common URLs
+    if (!scrapedData.foundPages.privacy) {
+      scrapedData.foundPages.privacy = await tryCommonPrivacyUrls(normalizedUrl);
+    }
+    if (!scrapedData.foundPages.cookie) {
+      scrapedData.foundPages.cookie = await tryCommonCookieUrls(normalizedUrl);
+    }
+
     // 4. Check for copyright notice
     scrapedData.foundCopyright = checkCopyright(homepageHtml);
 
@@ -52,10 +65,33 @@ export async function scrapeWebsite(url: string): Promise<ScrapedData> {
     // 7. Check PECR compliance (email signup forms)
     scrapedData.pecrCheck = checkPECR(homepageHtml);
 
-    // 8. If privacy policy found, analyze its contents
+    // 8. Fetch full content of policy documents for AI analysis
     if (scrapedData.foundPages.privacy) {
-      const privacyHtml = await fetchPage(scrapedData.foundPages.privacy);
-      scrapedData.privacyPolicyChecks = analyzePrivacyPolicy(privacyHtml);
+      try {
+        const privacyHtml = await fetchPage(scrapedData.foundPages.privacy);
+        scrapedData.documentContents.privacy = extractTextContent(privacyHtml);
+        scrapedData.privacyPolicyChecks = analyzePrivacyPolicy(privacyHtml);
+      } catch (err) {
+        console.warn('Failed to fetch privacy policy:', err);
+      }
+    }
+
+    if (scrapedData.foundPages.cookie) {
+      try {
+        const cookieHtml = await fetchPage(scrapedData.foundPages.cookie);
+        scrapedData.documentContents.cookie = extractTextContent(cookieHtml);
+      } catch (err) {
+        console.warn('Failed to fetch cookie policy:', err);
+      }
+    }
+
+    if (scrapedData.foundPages.safeguarding) {
+      try {
+        const safeguardingHtml = await fetchPage(scrapedData.foundPages.safeguarding);
+        scrapedData.documentContents.safeguarding = extractTextContent(safeguardingHtml);
+      } catch (err) {
+        console.warn('Failed to fetch safeguarding policy:', err);
+      }
     }
 
   } catch (error) {
@@ -64,6 +100,39 @@ export async function scrapeWebsite(url: string): Promise<ScrapedData> {
   }
 
   return scrapedData;
+}
+
+/**
+ * Extract readable text content from HTML
+ */
+function extractTextContent(html: string): string {
+  // Remove script and style tags
+  let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+  // Remove HTML tags but keep some structure
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/p>/gi, '\n\n');
+  text = text.replace(/<\/div>/gi, '\n');
+  text = text.replace(/<\/h[1-6]>/gi, '\n\n');
+  text = text.replace(/<\/li>/gi, '\n');
+  text = text.replace(/<[^>]+>/g, '');
+
+  // Decode HTML entities
+  text = text.replace(/&nbsp;/g, ' ');
+  text = text.replace(/&amp;/g, '&');
+  text = text.replace(/&lt;/g, '<');
+  text = text.replace(/&gt;/g, '>');
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&#39;/g, "'");
+
+  // Clean up whitespace
+  text = text.replace(/\n\s*\n\s*\n/g, '\n\n'); // Multiple newlines to double newline
+  text = text.replace(/[ \t]+/g, ' '); // Multiple spaces to single space
+  text = text.trim();
+
+  // Limit to reasonable size (first 10000 characters to avoid token limits)
+  return text.substring(0, 10000);
 }
 
 /**
@@ -151,19 +220,22 @@ function findPolicyPages(links: string[]): {
   for (const link of links) {
     const lowerLink = link.toLowerCase();
 
-    // Privacy policy
+    // Privacy policy - check for various privacy-related terms
     if (!result.privacy && (
-      lowerLink.includes('privacy') ||
-      lowerLink.includes('privacypolicy') ||
-      lowerLink.includes('privacy-policy')
+      lowerLink.includes('privacy') &&
+      (lowerLink.includes('policy') || lowerLink.includes('notice') ||
+       lowerLink.includes('statement') || lowerLink.match(/\/privacy[^a-z]/) ||
+       lowerLink.endsWith('/privacy'))
     )) {
       result.privacy = link;
     }
 
-    // Cookie policy
+    // Cookie policy - check for cookie-related terms
     if (!result.cookie && (
-      lowerLink.includes('cookie') ||
-      lowerLink.includes('cookies')
+      (lowerLink.includes('cookie') || lowerLink.includes('cookies')) &&
+      (lowerLink.includes('policy') || lowerLink.includes('notice') ||
+       lowerLink.includes('statement') || lowerLink.match(/\/cookies?[^a-z]/) ||
+       lowerLink.endsWith('/cookie') || lowerLink.endsWith('/cookies'))
     )) {
       result.cookie = link;
     }
@@ -172,7 +244,8 @@ function findPolicyPages(links: string[]): {
     if (!result.safeguarding && (
       lowerLink.includes('safeguarding') ||
       lowerLink.includes('child-protection') ||
-      lowerLink.includes('childprotection')
+      lowerLink.includes('childprotection') ||
+      (lowerLink.includes('child') && lowerLink.includes('safe'))
     )) {
       result.safeguarding = link;
     }
@@ -296,4 +369,72 @@ function analyzePrivacyPolicy(html: string): {
     mentionsDSAR,
     mentionsDataProcessors,
   };
+}
+
+/**
+ * Try common privacy policy URLs if not found through links
+ */
+async function tryCommonPrivacyUrls(baseUrl: string): Promise<string | null> {
+  const base = new URL(baseUrl);
+  const commonPaths = [
+    '/privacy',
+    '/privacy-policy',
+    '/privacy-notice',
+    '/privacy-statement',
+    '/privacypolicy',
+    '/legal/privacy',
+    '/en/privacy',
+    '/en/privacy-policy',
+    '/en/privacy-notice',
+  ];
+
+  for (const path of commonPaths) {
+    const testUrl = `${base.protocol}//${base.host}${path}`;
+    try {
+      const response = await fetch(testUrl, {
+        method: 'HEAD',
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ComplianceChecker/1.0)' },
+        redirect: 'follow',
+      });
+      if (response.ok) {
+        return testUrl;
+      }
+    } catch (err) {
+      // Continue to next URL
+    }
+  }
+  return null;
+}
+
+/**
+ * Try common cookie policy URLs if not found through links
+ */
+async function tryCommonCookieUrls(baseUrl: string): Promise<string | null> {
+  const base = new URL(baseUrl);
+  const commonPaths = [
+    '/cookies',
+    '/cookie-policy',
+    '/cookies-policy',
+    '/cookiepolicy',
+    '/legal/cookies',
+    '/en/cookies',
+    '/en/cookie-policy',
+  ];
+
+  for (const path of commonPaths) {
+    const testUrl = `${base.protocol}//${base.host}${path}`;
+    try {
+      const response = await fetch(testUrl, {
+        method: 'HEAD',
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ComplianceChecker/1.0)' },
+        redirect: 'follow',
+      });
+      if (response.ok) {
+        return testUrl;
+      }
+    } catch (err) {
+      // Continue to next URL
+    }
+  }
+  return null;
 }

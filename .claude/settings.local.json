@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr list:*)",
+      "Bash(gh repo view:*)",
+      "Bash(git log:*)",
+      "Bash(git filter-branch:*)",
+      "Bash(git stash:*)",
+      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch:*)",
+      "Bash(git push:*)",
+      "Bash(gh api:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test)",
+      "Bash(npx vitest:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -49,6 +49,12 @@ export interface ScrapedData {
     cookie: string | null;
     safeguarding: string | null;
   };
+  // Full text content of policy documents for AI analysis
+  documentContents: {
+    privacy: string | null;
+    cookie: string | null;
+    safeguarding: string | null;
+  };
   foundCopyright: boolean;
   paymentType: 'third-party' | 'self-hosted' | 'none';
   pecrCheck: 'opt-in' | 'opt-out' | 'unknown';
