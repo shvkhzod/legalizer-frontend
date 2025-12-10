@@ -189,21 +189,18 @@
   .scanning-circle {
     stroke: #228bff;
     stroke-dasharray: 63;
-    stroke-dashoffset: 0;
-    animation: scan 2s ease-in-out infinite;
+    animation: scan 1.5s ease-in-out infinite;
   }
 
   @keyframes scan {
     0% {
       stroke-dashoffset: 63;
-      transform: rotate(0deg);
     }
     50% {
       stroke-dashoffset: 0;
     }
     100% {
       stroke-dashoffset: -63;
-      transform: rotate(360deg);
     }
   }
 
