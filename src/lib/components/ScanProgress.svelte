@@ -46,7 +46,7 @@
       <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <circle cx="12" cy="12" r="10" stroke-opacity="0.3"/>
         <circle cx="12" cy="12" r="10" class="scanning-circle" stroke-dasharray="63" stroke-dashoffset="0"/>
-        <path d="M12 6v6l4 2" stroke-linecap="round"/>
+        <path d="M12 12L12 6M12 12L16 14" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <div class="pulse-ring"></div>
     </div>
