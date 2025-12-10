@@ -91,7 +91,7 @@
     min-height: 100vh;
     display: flex;
     align-items: center;
-    jwhyify-content: center;
+    justify-content: center;
     padding: 2rem;
     position: relative;
     overflow: hidden;
